@@ -12,9 +12,16 @@ import gc
 from torch.utils.data import DataLoader, TensorDataset
 import torch
 
-# 1. โหลดข้อมูล (ปล่อยให้เป็น Complex ก่อน)
-path = '../DeepMIMO/DeepMIMO/DeepMIMO_dataset/SNR0dB_O1_60_Ant64/'
-d1, d2, d3 = loadmat(path+'channel1.mat')['a'], loadmat(path+'channel2.mat')['b'], loadmat(path+'channel3.mat')['c']
+ai_model = 'lstm'
+snr = 0
+scenario = 'O1'
+frequency = 60
+antennas = 64
+
+path = f'../DeepMIMO/DeepMIMO/DeepMIMO_dataset/SNR{snr}dB_{scenario}_{frequency}_Ant{antennas}/'
+d1 = loadmat(path+'channel1.mat')['a']
+d2 = loadmat(path+'channel2.mat')['b']
+d3 = loadmat(path+'channel3.mat')['c']
 
 # 2. รวมข้อมูล (ยังเป็น Complex อยู่)
 data = np.concatenate((d1, d2, d3), axis=2).transpose(2, 0, 1)
@@ -65,15 +72,29 @@ print(f"Fixed LSTM Input shape: {X_train.shape}")
 # %%
 import torch
 import torch.nn as nn
+import numpy as np
+import random
+
+def apply_global_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    
+    if torch.backends.mps.is_available():
+        torch.mps.manual_seed(seed)
+        
+    print(f"Global environment locked with seed: {seed}")
+
+apply_global_seed(42)
 
 class BeamPredictionLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, n_beams, dropout_rate):
         super(BeamPredictionLSTM, self).__init__()
-        # 1. บีบอัดจาก 4096 -> 256 เพื่อลด Noise ก่อนเข้า LSTM
-        self.embedding = nn.Linear(input_size, 256)
+        # 1. บีบอัดจาก 4096 -> 180 เพื่อลด Noise ก่อนเข้า LSTM
+        self.embedding = nn.Linear(input_size, 180)
         
-        # 2. LSTM รับข้อมูลที่คลีนขึ้น (ขนาด 256)
-        self.lstm = nn.LSTM(256, hidden_size, num_layers, batch_first=True, dropout=dropout_rate)
+        # 2. LSTM รับข้อมูลที่คลีนขึ้น (ขนาด 180)
+        self.lstm = nn.LSTM(180, hidden_size, num_layers, batch_first=True, dropout=dropout_rate)
         
         self.fc = nn.Linear(hidden_size, n_beams)
 
@@ -89,78 +110,74 @@ class BeamPredictionLSTM(nn.Module):
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
-model = BeamPredictionLSTM(4096, 512, 2, 64, 0.05).to(device)
+model = BeamPredictionLSTM(4096, 416, 2, 64, 0.2).to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.5)
 criterion = nn.CrossEntropyLoss()
 
+params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f'Total Trainable Params: {params}')
+
+# %%
 epochs = 100
-for epoch in range(epochs): # ลดเหลือ 50 เพื่อดูแนวโน้มก่อน
+best_loss = float('inf')
+train_losses = []
+
+for epoch in range(epochs):
+    epoch_loss = 0.0
     model.train()
     for inputs, labels in train_loader:
         inputs, labels = inputs.to(device), labels.to(device)
+        
         optimizer.zero_grad()
         outputs = model(inputs)
+        # Use torch.max to find the best index of beam for CrossEntropyLoss
         loss = criterion(outputs, torch.max(labels, 1)[1])
         loss.backward()
         optimizer.step()
-    
+        
+        epoch_loss += loss.item()
+        
+    avg_epoch_loss = epoch_loss / len(train_loader)
+    train_losses.append(avg_epoch_loss)
+        
+    scheduler.step(avg_epoch_loss)
+        
     if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/50], Loss: {loss.item():.4f}')
+        print(f'Epoch [{epoch+1}/{epochs}], Avg Loss: {avg_epoch_loss:.4f}, LR: {optimizer.param_groups[0]["lr"]:.6f}')
 
-# %%
-model.eval()
-correct = 0
-total = 0
-with torch.no_grad():
-    for inputs, labels in test_loader:
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        _, actual = torch.max(labels.data, 1)
-        total += labels.size(0)
-        correct += (predicted == actual).sum().item()
+    if avg_epoch_loss < best_loss:
+        best_loss = avg_epoch_loss
+        torch.save(model.state_dict(), f'best_{ai_model}_model.pth')
+        print(f"--> Saved better model at Epoch {epoch+1} with Loss: {best_loss:.4f}")
+
         
-print(f'Average Accuracy on SNR 0dB: {100 * correct / total:.2f}%')
 
 # %%
-import seaborn as sns
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
+import evaluate as ev
+import visualizer as vis
 
-# เก็บค่าผลลัพธ์ทั้งหมด
-all_preds = []
-all_actuals = []
+model.load_state_dict(torch.load(f'best_{ai_model}_model.pth'))
 
-model.eval()
-with torch.no_grad():
-    for inputs, labels in test_loader:
-        inputs = inputs.to(device)
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs, 1)
-        _, actual = torch.max(labels, 1)
-        
-        all_preds.extend(predicted.cpu().numpy())
-        all_actuals.extend(actual.cpu().numpy())
+ds_config = {
+    'snr': snr,
+    'scenario': scenario,
+    'frequency': frequency,
+    'antennas': antennas
+}  
 
-# สร้าง Confusion Matrix
-cm = confusion_matrix(all_actuals, all_preds)
-plt.figure(figsize=(10, 8))
-sns.heatmap(cm, annot=False, cmap='Blues')
-plt.title('Confusion Matrix: Predicted vs Actual Beams (SNR 0dB)')
-plt.xlabel('Predicted Beam Index')
-plt.ylabel('Actual Beam Index')
-plt.show()
+# 1. รันการวัดผลและเก็บค่า raw data
+mimo_results = ev.evaluate_performance(model, test_loader, device, criterion, ai_model)
 
-# %%
-plt.figure(figsize=(15, 5))
-plt.plot(all_actuals[:200], 'g-', label='Actual Beam (Optimal)', alpha=0.6)
-plt.plot(all_preds[:200], 'r--', label='Predicted Beam (DNN)', alpha=0.8)
-plt.title('Beam Tracking Performance over User Trajectory (SNR 0dB)')
-plt.xlabel('User Index (Sequence)')
-plt.ylabel('Beam Index')
-plt.legend()
-plt.grid(True)
-plt.show()
+# 2. วาดกราฟ Loss (อันเดิม)
+vis.plot_training_loss(train_losses, mimo_results, ds_config)
+
+# 3. วาดกราฟ Confusion Matrix (อันใหม่)
+# หมายเหตุ: คุณต้องส่ง all_actuals และ all_preds ที่เก็บมาจากการรันเข้าฟังก์ชันนี้
+vis.plot_confusion_matrix(mimo_results['all_actuals'], mimo_results['all_preds'], ai_model)
+
+# 4. วาดกราฟ Beam Tracking (อันใหม่)
+vis.plot_beam_tracking(mimo_results['all_actuals'], mimo_results['all_preds'], ai_model)
 
 
