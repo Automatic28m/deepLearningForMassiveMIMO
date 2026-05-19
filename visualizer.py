@@ -5,7 +5,7 @@ import numpy as np
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
-
+save_path = './results/'
 
 def plot_training_loss(train_losses, eval_results, dataset_config):
     """
@@ -41,9 +41,8 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
         ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
     plt.legend()
-    plt.subplots_adjust(bottom=0.38) # เพิ่มพื้นที่ด้านล่างให้พอดีกับกล่องข้อความ
+    plt.subplots_adjust(bottom=0.38)
 
-    # ดึงข้อมูลจาก eval_results และ dataset_config
     config_text = (
         f"Plot date time: {initial_datetime}\n"
         f"--- Model Configuration ---\n"
@@ -63,18 +62,17 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
         f"Scenario Name: DeepMIMO {dataset_config['scenario']}\n"
     )
 
-    # วางกล่องข้อความ (ปรับตำแหน่ง y เป็น 0.02 เพื่อให้อยู่ในกรอบรูปพอดี)
     plt.figtext(0.15, 0.02, config_text, 
                 fontsize=9, 
                 ha="left", 
                 bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray', boxstyle='round,pad=0.5'))
     
-    # filename = f"result_{ai_model.lower()}_{dataset_config['frequency']}ghz.png"
-    # plt.savefig(filename, dpi=300, bbox_inches='tight')
-    # print(f"Graph saved as: {filename}")
+    filename = f"result_{ai_model.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
+    plt.savefig(save_path + filename, dpi=300, bbox_inches='tight')
+    print(f"Graph saved as: {filename}")
     plt.show()
     
-def plot_confusion_matrix(y_true, y_pred, model_name):
+def plot_confusion_matrix(y_true, y_pred, model_name, dataset_config):
     plt.figure(figsize=(12, 10))
     cm = confusion_matrix(y_true, y_pred)
     sns.heatmap(cm, annot=False, cmap='Blues')
@@ -82,12 +80,12 @@ def plot_confusion_matrix(y_true, y_pred, model_name):
     plt.xlabel('Predicted Beam Index')
     plt.ylabel('Actual Beam Index')
     
-    # filename = f"cm_{model_name.lower()}.png"
-    # plt.savefig(filename, dpi=300, bbox_inches='tight')
-    # print(f"Confusion Matrix saved as: {filename}")
+    filename = f"cm_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
+    plt.savefig(save_path + filename, dpi=300, bbox_inches='tight')
+    print(f"Confusion Matrix saved as: {filename}")
     plt.show()
 
-def plot_beam_tracking(y_true, y_pred, model_name, sample_range=200):
+def plot_beam_tracking(y_true, y_pred, model_name, dataset_config, sample_range=200):
     plt.figure(figsize=(15, 5))
     plt.plot(y_true[:sample_range], 'g-', label='Actual Beam (Optimal)', alpha=0.6, linewidth=1.5)
     plt.plot(y_pred[:sample_range], 'r--', label=f'Predicted Beam ({model_name.upper()})', alpha=0.8)
@@ -98,7 +96,7 @@ def plot_beam_tracking(y_true, y_pred, model_name, sample_range=200):
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
     
-    # filename = f"tracking_{model_name.lower()}.png"
-    # plt.savefig(filename, dpi=300, bbox_inches='tight')
-    # print(f"Beam Tracking plot saved as: {filename}")
+    filename = f"tracking_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
+    plt.savefig(save_path + filename, dpi=300, bbox_inches='tight')
+    print(f"Beam Tracking plot saved as: {filename}")
     plt.show()
