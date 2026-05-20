@@ -2,14 +2,15 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import warnings
+import csv
+import os
 from sklearn.metrics import precision_recall_fscore_support, roc_auc_score, accuracy_score
-
 
 # ปิดคำเตือนสำหรับคลาสที่ไม่มีใน Test Set เพื่อให้ Log สะอาด
 from sklearn.exceptions import UndefinedMetricWarning
 warnings.filterwarnings('ignore', category=UndefinedMetricWarning)
 
-def evaluate_performance(model, test_loader, device, criterion, model_name, n_beams=64):
+def evaluate_performance(model, test_loader, device, criterion, model_name, ds_config, n_beams=64, csv_file="evaluation_results.csv"):
 
     model.eval()
     val_loss = 0
@@ -54,9 +55,13 @@ def evaluate_performance(model, test_loader, device, criterion, model_name, n_be
     except ValueError:
         val_auc = 0.0
 
-    # เก็บผลลัพธ์ในรูปแบบ Dictionary เพื่อนำไปใช้ต่อได้ง่าย (เช่น ทำกราฟ)
+    frequency = ds_config.get('frequency', 'N/A')
+    snr = ds_config.get('snr', 'N/A')
+
     results = {
         "model_name": model_name.upper(),
+        "frequency": frequency,
+        "snr": snr,
         "loss": avg_val_loss,
         "accuracy": avg_val_acc * 100,
         "precision": precision * 100,
@@ -68,13 +73,26 @@ def evaluate_performance(model, test_loader, device, criterion, model_name, n_be
         "all_probs": all_probs
     }
 
-    # พิมพ์สรุปผล
-    # print(f"\n--- Evaluation Metrics for {results['model_name']} ---")
-    # print(f"Val Loss:      {results['loss']:.4f}")
-    # print(f"Val Accuracy:  {results['accuracy']:.2f}%")
-    # print(f"Val Precision: {results['precision']:.2f}%")
-    # print(f"Val Recall:    {results['recall']:.2f}%")
-    # print(f"Val F1-Score:  {results['f1']:.2f}%")
-    # print(f"Val AUC:       {results['auc']:.2f}%")
+    file_exists = os.path.isfile(csv_file)
+    
+    with open(csv_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        
+        if not file_exists:
+            writer.writerow(['Model', 'Frequency (GHz)', 'SNR (dB)', 'Val Loss', 'Accuracy (%)', 'Precision (%)', 'Recall (%)', 'F1-Score (%)', 'AUC (%)'])
+        
+        writer.writerow([
+            results['model_name'],
+            results['frequency'],
+            results['snr'],
+            f"{results['loss']:.4f}",
+            f"{results['accuracy']:.2f}%",
+            f"{results['precision']:.2f}%",
+            f"{results['recall']:.2f}%",
+            f"{results['f1']:.2f}%",
+            f"{results['auc']:.2f}%"
+        ])
+        
+    print(f"[INFO] Successfully logged results for {results['model_name']} (Freq: {frequency}GHz, SNR: {snr}dB) to {csv_file}")
     
     return results

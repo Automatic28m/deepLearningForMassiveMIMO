@@ -68,7 +68,7 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
                 bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray', boxstyle='round,pad=0.5'))
     
     filename = f"result_{ai_model.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + filename, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path + 'result/' + filename, dpi=300, bbox_inches='tight')
     print(f"Graph saved as: {filename}")
     plt.show()
     
@@ -81,7 +81,7 @@ def plot_confusion_matrix(y_true, y_pred, model_name, dataset_config):
     plt.ylabel('Actual Beam Index')
     
     filename = f"cm_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + filename, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path + 'cm/' + filename, dpi=300, bbox_inches='tight')
     print(f"Confusion Matrix saved as: {filename}")
     plt.show()
 
@@ -97,6 +97,6 @@ def plot_beam_tracking(y_true, y_pred, model_name, dataset_config, sample_range=
     plt.grid(True, linestyle='--', alpha=0.7)
     
     filename = f"tracking_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + filename, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path + 'tracking/' + filename, dpi=300, bbox_inches='tight')
     print(f"Beam Tracking plot saved as: {filename}")
     plt.show()
