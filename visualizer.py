@@ -5,7 +5,10 @@ import numpy as np
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+import os
+import csv
 save_path = './results/'
+
 
 def plot_training_loss(train_losses, eval_results, dataset_config):
     """
@@ -15,26 +18,30 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
     dataset_config: dictionary รวมข้อมูล snr, frequency, antennas, scenario
     """
     epochs = len(train_losses)
-    ai_model = eval_results.get('model_name', 'Model')
+    model = eval_results.get('model_name', 'Model')
     initial_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     final_avg_loss = np.mean(train_losses[-10:])
 
-    plt.figure(figsize=(10, 8)) 
-    plt.plot(range(1, epochs + 1), train_losses, color='blue', label='Training Loss', linewidth=1.5)
+    plt.figure(figsize=(10, 8))
+    plt.plot(range(1, epochs + 1), train_losses, color='blue',
+             label='Training Loss', linewidth=1.5)
 
     # Graph styling
-    plt.title(f'{ai_model} Training Loss over Epochs', fontsize=14, fontweight='bold')
+    plt.title(f'{model} Training Loss over Epochs',
+              fontsize=14, fontweight='bold')
     plt.xlabel('Epoch', fontsize=12)
     plt.ylabel('Loss', fontsize=12)
-    
+
     plt.minorticks_on()
-    plt.grid(which='major', linestyle='-', linewidth='0.5', color='gray', alpha=0.8)
-    plt.grid(which='minor', linestyle='-', linewidth='0.5', color='lightgray', alpha=0.5)
+    plt.grid(which='major', linestyle='-',
+             linewidth='0.5', color='gray', alpha=0.8)
+    plt.grid(which='minor', linestyle='-',
+             linewidth='0.5', color='lightgray', alpha=0.5)
 
     ax = plt.gca()
     ax.xaxis.set_major_locator(ticker.MultipleLocator(10))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(2))
-    
+
     # ปรับ Y-axis อัตโนมัติให้เหมาะสมกับค่า Loss
     if max(train_losses) > 1.0:
         ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
@@ -48,7 +55,7 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
         f"--- Model Configuration ---\n"
         f"Epoch Count: {epochs}\n"
         f"Final Stable Loss (Last 10 Epochs): {final_avg_loss:.4f}\n"
-        f"--- Evaluation Metrics for {ai_model} ---\n"
+        f"--- Evaluation Metrics for {model} ---\n"
         f"Val Loss: {eval_results['loss']:.4f}\n"
         f"Val Accuracy: {eval_results['accuracy']:.2f}%\n"
         f"Val Precision: {eval_results['precision']:.2f}%\n"
@@ -62,16 +69,17 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
         f"Scenario Name: DeepMIMO {dataset_config['scenario']}\n"
     )
 
-    plt.figtext(0.15, 0.02, config_text, 
-                fontsize=9, 
-                ha="left", 
+    plt.figtext(0.15, 0.02, config_text,
+                fontsize=9,
+                ha="left",
                 bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray', boxstyle='round,pad=0.5'))
-    
-    filename = f"result_{ai_model.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
+
+    filename = f"result_{model.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
     plt.savefig(save_path + 'result/' + filename, dpi=300, bbox_inches='tight')
     print(f"Graph saved as: {filename}")
     plt.show()
-    
+
+
 def plot_confusion_matrix(y_true, y_pred, model_name, dataset_config):
     plt.figure(figsize=(12, 10))
     cm = confusion_matrix(y_true, y_pred)
@@ -79,24 +87,111 @@ def plot_confusion_matrix(y_true, y_pred, model_name, dataset_config):
     plt.title(f'Confusion Matrix: {model_name.upper()}', fontsize=14)
     plt.xlabel('Predicted Beam Index')
     plt.ylabel('Actual Beam Index')
-    
+
     filename = f"cm_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
     plt.savefig(save_path + 'cm/' + filename, dpi=300, bbox_inches='tight')
     print(f"Confusion Matrix saved as: {filename}")
     plt.show()
 
+
 def plot_beam_tracking(y_true, y_pred, model_name, dataset_config, sample_range=200):
     plt.figure(figsize=(15, 5))
-    plt.plot(y_true[:sample_range], 'g-', label='Actual Beam (Optimal)', alpha=0.6, linewidth=1.5)
-    plt.plot(y_pred[:sample_range], 'r--', label=f'Predicted Beam ({model_name.upper()})', alpha=0.8)
-    
+    plt.plot(y_true[:sample_range], 'g-',
+             label='Actual Beam (Optimal)', alpha=0.6, linewidth=1.5)
+    plt.plot(y_pred[:sample_range], 'r--',
+             label=f'Predicted Beam ({model_name.upper()})', alpha=0.8)
+
     plt.title(f'Beam Tracking Performance: {model_name.upper()}', fontsize=14)
     plt.xlabel('User Index (Sequence)')
     plt.ylabel('Beam Index')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
-    
-    filename = f"tracking_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + 'tracking/' + filename, dpi=300, bbox_inches='tight')
+
+    filename = f"beam_tracking_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
+    plt.savefig(save_path + 'beam_tracking/' + filename,
+                dpi=300, bbox_inches='tight')
     print(f"Beam Tracking plot saved as: {filename}")
     plt.show()
+
+
+def plot_se_tracking(user_indices, optimal_se, predicted_se, model_name, ds_config):
+    """
+    พล็อตกราฟเปรียบเทียบ Spectral Efficiency ตลอดช่วง Sequence ของ User
+    """
+    plt.figure(figsize=(14, 5))
+
+    # พล็อตเส้น 2 เส้น
+    plt.plot(user_indices, optimal_se, label='Optimal SE (Actual Beam)',
+             color='green', alpha=0.7, linewidth=1.5)
+    plt.plot(user_indices, predicted_se,
+             label=f'Achievable SE ({model_name.upper()})', color='red', linestyle='--', alpha=0.8, linewidth=1.5)
+
+    # ไฮไลท์พื้นที่สีแดงตรงจุดที่ AI ทายพลาดแล้วทำให้ SE ดรอป (เสริมความเข้าใจให้ Sensei)
+    plt.fill_between(user_indices, optimal_se, predicted_se, where=(optimal_se > predicted_se),
+                     interpolate=True, color='red', alpha=0.2, label='SE Loss (Misprediction)')
+
+    plt.title(
+        f'Spectral Efficiency Tracking: {model_name.upper()} (Freq: {ds_config["frequency"]}GHz, SNR: {ds_config["snr"]}dB)')
+    plt.xlabel('User Index (Sequence)')
+    plt.ylabel('Spectral Efficiency (bps/Hz)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend(loc='upper right')
+
+    plt.tight_layout()
+    filename = f"se_tracking_{model_name.lower()}_{ds_config['snr']}_{ds_config['scenario']}_{ds_config['frequency']}ghz_{ds_config['antennas']}ant.png"
+    plt.savefig(save_path + 'se_tracking/' + filename,
+                dpi=300, bbox_inches='tight')
+    
+    plt.savefig(
+        f"tracking_se_{model_name.lower()}_{ds_config['snr']}dB.png", dpi=300)
+    plt.show()
+
+
+def save_se_summary_to_csv(mimo_results, se_test, model_name, ds_config, eval_datetime):
+    csv_dir = os.path.join(save_path, "csv")
+    csv_file = os.path.join(csv_dir, "se_summary.csv")
+    os.makedirs(csv_dir, exist_ok=True)
+    
+    preds_array = np.array(mimo_results['all_preds'])
+    actuals_array = np.array(mimo_results['all_actuals'])
+    user_indices = np.arange(len(preds_array))
+
+    predicted_se = se_test[user_indices, preds_array]
+    optimal_se = se_test[user_indices, actuals_array]
+
+    mean_se = np.mean(predicted_se)
+    min_se = np.min(predicted_se)
+    max_se = np.max(predicted_se)
+
+    se_ratio = np.where(optimal_se > 0, predicted_se / optimal_se, 1.0)
+    users_above_threshold = np.sum(se_ratio >= 0.90) / len(user_indices) * 100
+
+    file_exists = os.path.isfile(csv_file)
+    with open(csv_file, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow([
+                "Time stamp", 
+                "Model", 
+                "Scenario", 
+                "SNR (dB)", 
+                "Frequency (GHz)",
+                "Antenna Count",
+                "Mean SE (bps/Hz)", 
+                "Min SE (bps/Hz)", 
+                "Max SE (bps/Hz)", 
+                "Users with SE ≥ 90% of Optimal (%)"
+            ])
+
+        writer.writerow([
+            eval_datetime,
+            model_name.upper(),
+            ds_config['scenario'],
+            ds_config['snr'],
+            ds_config['frequency'],
+            ds_config['antennas'],
+            f"{mean_se:.1f}",
+            f"{min_se:.1f}",
+            f"{max_se:.1f}",
+            f"{users_above_threshold:.1f}"
+        ])
