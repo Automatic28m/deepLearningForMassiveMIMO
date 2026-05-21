@@ -1,2 +1,3 @@
 Time stamp,Model,Scenario,SNR (dB),Frequency (GHz),Antenna Count,Mean SE (bps/Hz),Min SE (bps/Hz),Max SE (bps/Hz),Users with SE ≥ 90% of Optimal (%)
 2026-05-21 12:01:58,DNN,O1,0,60,64,1.4,0.0,4.9,90.6
+2026-05-21 13:03:42,DNN,O1,0,60,64,1.4,0.0,4.9,90.6

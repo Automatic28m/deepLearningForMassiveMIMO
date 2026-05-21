@@ -4,31 +4,32 @@ from datetime import datetime
 import numpy as np
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
 import os
 import csv
+
 save_path = './results/'
 
+def _ensure_dir_exists(sub_dir):
+    target_dir = os.path.join(save_path, sub_dir)
+    os.makedirs(target_dir, exist_ok=True)
+    return target_dir
 
-def plot_training_loss(train_losses, eval_results, dataset_config):
+
+def plot_training_loss(train_losses, eval_results, dataset_config, eval_datetime):
     """
     สร้างกราฟ Training Loss พร้อมรายละเอียด Metrics และ Dataset Configuration
-    train_losses: list ของ loss จากการ train
-    eval_results: dictionary ที่ได้จากฟังก์ชัน evaluate_performance
-    dataset_config: dictionary รวมข้อมูล snr, frequency, antennas, scenario
     """
+    _ensure_dir_exists('result')
     epochs = len(train_losses)
     model = eval_results.get('model_name', 'Model')
-    initial_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     final_avg_loss = np.mean(train_losses[-10:])
 
     plt.figure(figsize=(10, 8))
     plt.plot(range(1, epochs + 1), train_losses, color='blue',
              label='Training Loss', linewidth=1.5)
 
-    # Graph styling
-    plt.title(f'{model} Training Loss over Epochs',
-              fontsize=14, fontweight='bold')
+    plt.title(f'{model} Training Loss over Epochs\n[Generated: {eval_datetime}]',
+              fontsize=13, fontweight='bold')
     plt.xlabel('Epoch', fontsize=12)
     plt.ylabel('Loss', fontsize=12)
 
@@ -42,7 +43,6 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
     ax.xaxis.set_major_locator(ticker.MultipleLocator(10))
     ax.xaxis.set_minor_locator(ticker.MultipleLocator(2))
 
-    # ปรับ Y-axis อัตโนมัติให้เหมาะสมกับค่า Loss
     if max(train_losses) > 1.0:
         ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
         ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
@@ -51,7 +51,7 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
     plt.subplots_adjust(bottom=0.38)
 
     config_text = (
-        f"Plot date time: {initial_datetime}\n"
+        f"Plot date time: {eval_datetime}\n"
         f"--- Model Configuration ---\n"
         f"Epoch Count: {epochs}\n"
         f"Final Stable Loss (Last 10 Epochs): {final_avg_loss:.4f}\n"
@@ -75,49 +75,53 @@ def plot_training_loss(train_losses, eval_results, dataset_config):
                 bbox=dict(facecolor='white', alpha=0.9, edgecolor='gray', boxstyle='round,pad=0.5'))
 
     filename = f"result_{model.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + 'result/' + filename, dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(save_path, 'result', filename), dpi=300, bbox_inches='tight')
     print(f"Graph saved as: {filename}")
     plt.show()
 
 
-def plot_confusion_matrix(y_true, y_pred, model_name, dataset_config):
+def plot_confusion_matrix(y_true, y_pred, model_name, dataset_config, eval_datetime):
+    _ensure_dir_exists('cm')
     plt.figure(figsize=(12, 10))
     cm = confusion_matrix(y_true, y_pred)
     sns.heatmap(cm, annot=False, cmap='Blues')
-    plt.title(f'Confusion Matrix: {model_name.upper()}', fontsize=14)
+    
+    # เพิ่มค่า Timestamp ลงบนหัวข้อหลัก
+    plt.title(f'Confusion Matrix: {model_name.upper()}\n[Generated: {eval_datetime}]', fontsize=13, fontweight='bold')
     plt.xlabel('Predicted Beam Index')
     plt.ylabel('Actual Beam Index')
 
     filename = f"cm_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + 'cm/' + filename, dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(save_path, 'cm', filename), dpi=300, bbox_inches='tight')
     print(f"Confusion Matrix saved as: {filename}")
     plt.show()
 
 
-def plot_beam_tracking(y_true, y_pred, model_name, dataset_config, sample_range=200):
+def plot_beam_tracking(y_true, y_pred, model_name, dataset_config, eval_datetime, sample_range=200):
+    _ensure_dir_exists('beam_tracking')
     plt.figure(figsize=(15, 5))
     plt.plot(y_true[:sample_range], 'g-',
              label='Actual Beam (Optimal)', alpha=0.6, linewidth=1.5)
     plt.plot(y_pred[:sample_range], 'r--',
              label=f'Predicted Beam ({model_name.upper()})', alpha=0.8)
 
-    plt.title(f'Beam Tracking Performance: {model_name.upper()}', fontsize=14)
+    plt.title(f'Beam Tracking Performance: {model_name.upper()}\n[Generated: {eval_datetime}]', fontsize=13, fontweight='bold')
     plt.xlabel('User Index (Sequence)')
     plt.ylabel('Beam Index')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
 
     filename = f"beam_tracking_{model_name.lower()}_{dataset_config['snr']}_{dataset_config['scenario']}_{dataset_config['frequency']}ghz_{dataset_config['antennas']}ant.png"
-    plt.savefig(save_path + 'beam_tracking/' + filename,
-                dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(save_path, 'beam_tracking', filename), dpi=300, bbox_inches='tight')
     print(f"Beam Tracking plot saved as: {filename}")
     plt.show()
 
 
-def plot_se_tracking(user_indices, optimal_se, predicted_se, model_name, ds_config):
+def plot_se_tracking(user_indices, optimal_se, predicted_se, model_name, ds_config, eval_datetime):
     """
-    พล็อตกราฟเปรียบเทียบ Spectral Efficiency ตลอดช่วง Sequence ของ User
+    พล็อตกราฟเปรียบเทียบ Spectral Efficiency ตลอดช่วง Sequence ของ User พร้อมเพิ่มระบบลงเวลากำกับบนหัวเรื่อง
     """
+    _ensure_dir_exists('se_tracking')
     plt.figure(figsize=(14, 5))
 
     # พล็อตเส้น 2 เส้น
@@ -126,12 +130,11 @@ def plot_se_tracking(user_indices, optimal_se, predicted_se, model_name, ds_conf
     plt.plot(user_indices, predicted_se,
              label=f'Achievable SE ({model_name.upper()})', color='red', linestyle='--', alpha=0.8, linewidth=1.5)
 
-    # ไฮไลท์พื้นที่สีแดงตรงจุดที่ AI ทายพลาดแล้วทำให้ SE ดรอป (เสริมความเข้าใจให้ Sensei)
     plt.fill_between(user_indices, optimal_se, predicted_se, where=(optimal_se > predicted_se),
                      interpolate=True, color='red', alpha=0.2, label='SE Loss (Misprediction)')
 
     plt.title(
-        f'Spectral Efficiency Tracking: {model_name.upper()} (Freq: {ds_config["frequency"]}GHz, SNR: {ds_config["snr"]}dB)')
+        f'Spectral Efficiency Tracking: {model_name.upper()} (Freq: {ds_config["frequency"]}GHz, SNR: {ds_config["snr"]}dB)\n[Generated: {eval_datetime}]', fontsize=13, fontweight='bold')
     plt.xlabel('User Index (Sequence)')
     plt.ylabel('Spectral Efficiency (bps/Hz)')
     plt.grid(True, linestyle='--', alpha=0.7)
@@ -139,18 +142,16 @@ def plot_se_tracking(user_indices, optimal_se, predicted_se, model_name, ds_conf
 
     plt.tight_layout()
     filename = f"se_tracking_{model_name.lower()}_{ds_config['snr']}_{ds_config['scenario']}_{ds_config['frequency']}ghz_{ds_config['antennas']}ant.png"
-    plt.savefig(save_path + 'se_tracking/' + filename,
-                dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(save_path, 'se_tracking', filename), dpi=300, bbox_inches='tight')
     
-    plt.savefig(
-        f"tracking_se_{model_name.lower()}_{ds_config['snr']}dB.png", dpi=300)
+    plt.savefig(f"tracking_se_{model_name.lower()}_{ds_config['snr']}dB.png", dpi=300, bbox_inches='tight')
+    print(f"Spectral Efficiency Tracking plot saved as: {filename}")
     plt.show()
 
 
 def save_se_summary_to_csv(mimo_results, se_test, model_name, ds_config, eval_datetime):
-    csv_dir = os.path.join(save_path, "csv")
+    csv_dir = _ensure_dir_exists('csv')
     csv_file = os.path.join(csv_dir, "se_summary.csv")
-    os.makedirs(csv_dir, exist_ok=True)
     
     preds_array = np.array(mimo_results['all_preds'])
     actuals_array = np.array(mimo_results['all_actuals'])
@@ -195,3 +196,4 @@ def save_se_summary_to_csv(mimo_results, se_test, model_name, ds_config, eval_da
             f"{max_se:.1f}",
             f"{users_above_threshold:.1f}"
         ])
+    print(f"[SUCCESS] Spectral Efficiency report compiled and saved to: {csv_file}")
