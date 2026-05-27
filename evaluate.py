@@ -94,8 +94,10 @@ def evaluate_performance(model, test_loader, device, criterion, model_name, ds_c
             writer.writerow([
                 'Time stamp',
                 'Model',
-                'Frequency (GHz)',
+                'Scenario',
                 'SNR (dB)',
+                'Frequency (GHz)',
+                'Antennas',
                 'Val Loss',
                 'Accuracy (%)',
                 'Precision (%)',
