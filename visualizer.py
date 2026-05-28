@@ -15,20 +15,26 @@ def _ensure_dir_exists(sub_dir):
     return target_dir
 
 
-def plot_training_loss(train_losses, eval_results, dataset_config, eval_datetime):
+def plot_training_loss(train_losses, val_losses, eval_results, dataset_config, eval_datetime):
     """
     สร้างกราฟ Training Loss พร้อมรายละเอียด Metrics และ Dataset Configuration
     """
     _ensure_dir_exists('result')
     epochs = len(train_losses)
     model = eval_results.get('model_name', 'Model')
-    final_avg_loss = np.mean(train_losses[-10:])
+    
+    final_avg_train = np.mean(train_losses[-10:])
+    final_avg_val = np.mean(val_losses[-10:])
 
     plt.figure(figsize=(10, 8))
+    
     plt.plot(range(1, epochs + 1), train_losses, color='blue',
              label='Training Loss', linewidth=1.5)
+    
+    plt.plot(range(1, epochs + 1), val_losses, color='orange',
+             label='Validation Loss', linewidth=1.5, alpha=0.9)
 
-    plt.title(f'{model} Training Loss over Epochs\n[Generated: {eval_datetime}]',
+    plt.title(f'{model} Training Performance\n[Generated: {eval_datetime}]',
               fontsize=13, fontweight='bold')
     plt.xlabel('Epoch', fontsize=12)
     plt.ylabel('Loss', fontsize=12)
@@ -54,7 +60,8 @@ def plot_training_loss(train_losses, eval_results, dataset_config, eval_datetime
         f"Plot date time: {eval_datetime}\n"
         f"--- Model Configuration ---\n"
         f"Epoch Count: {epochs}\n"
-        f"Final Stable Loss (Last 10 Epochs): {final_avg_loss:.4f}\n"
+        f"Final Stable Train Loss (Last 10 Epochs): {final_avg_train:.4f}\n"
+        f"Final Stable Validation Loss (Last 10 Epochs): {final_avg_val:.4f}\n"
         f"--- Evaluation Metrics for {model} ---\n"
         f"Val Loss: {eval_results['loss']:.4f}\n"
         f"Val Accuracy: {eval_results['accuracy']:.2f}%\n"
